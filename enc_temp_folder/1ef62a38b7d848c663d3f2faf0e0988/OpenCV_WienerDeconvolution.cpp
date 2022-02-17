@@ -104,6 +104,11 @@ int main()
     idft(Y, y, DFT_REAL_OUTPUT | DFT_SCALE);
 
     imshow("y", y);
+    //  imshow("f", rf);
+    //  imshow("b", b);
+    waitKey();
+    system("pause");
+    cout << "Hello CMake." << endl;
     waitKey();
     system("pause");
     return 0;
