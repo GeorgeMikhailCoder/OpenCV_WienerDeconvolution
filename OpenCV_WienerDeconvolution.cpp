@@ -13,17 +13,6 @@ Mat toFloat(const Mat& src)
     return res;
 }
 
-Mat myDFT(Mat src)
-{
-    Mat b;
-    dft(src, b, DFT_COMPLEX_OUTPUT);
-    vector<Mat> mass;
-    split(b, mass);
-    Mat rf;
-    rf = mass[0];
-    return rf;
-}
-
 Mat conj(Mat src)
 {
     vector<Mat> mass;
@@ -36,10 +25,62 @@ Mat conj(Mat src)
 }
 
 
+void checkSizeType(const Mat& A, const Mat& B)
+{
+    assert(A.rows == B.rows && A.cols == B.cols && A.depth() == B.depth() && A.channels() == B.channels());
+}
+
+Mat complMul(const Mat& A, const Mat& B)
+{
+    assert(A.channels() == 2);
+    checkSizeType(A, B);
+    
+    Mat res(A.rows, A.cols, CV_32FC2);
+
+    for (int y = 0; y < A.rows; y++)
+    {
+        for (int x = 0; x < A.cols; x++)
+        {
+            Vec2f a = A.at<Vec2f>(y, x);
+            Vec2f b = B.at<Vec2f>(y, x);
+
+            Vec2f c;
+            c[0] = a[0] * b[0] - a[1] * b[1];
+            c[1] = a[0] * b[1] + a[1] * b[0];
+
+            res.at<Vec2f>(y, x) = c;
+        }
+    }
+
+    return res;
+}
+
+Mat absSqr(const Mat& src)
+{
+    assert(src.channels() == 2);
+
+    Mat res(src.rows, src.cols, CV_32FC2);
+
+    for (int y = 0; y < src.rows; y++)
+    {
+        for (int x = 0; x < src.cols; x++)
+        {
+            Vec2f a = src.at<Vec2f>(y, x);
+
+            Vec2f c;
+            c[0] = a[0] * a[0] + a[1]*a[1];
+
+            res.at<Vec2f>(y, x) = c;
+        }
+    }
+
+    return res;
+}
+
 int main()
 {
     Mat a;
-    a = imread("../../../img/small.jpg", IMREAD_GRAYSCALE);
+    a = imread("../../../img/redcar1.jpg", IMREAD_GRAYSCALE);
     if (a.empty())
         return -1;
 
@@ -68,35 +109,44 @@ int main()
 
     dft(a, A, DFT_COMPLEX_OUTPUT);
     dft(u, U, DFT_COMPLEX_OUTPUT);
-    cout << h<< endl;
-    cout << h_expand << endl;
+    //  cout << h<< endl;
+    //  cout << h_expand << endl;
     dft(h_expand, H, DFT_COMPLEX_OUTPUT);
-    cout << H.rows << H.cols << endl;
+    // cout << H.rows << H.cols << endl;
     
 
-    B = A.mul(H);
+    B = complMul(A, H);
     idft(B, b, DFT_REAL_OUTPUT | DFT_SCALE);
     imshow("b", b);
  
     Y.create(U.rows, U.cols, CV_32FC2);
+
+    //  float  N = 0.001;
+    //  Y = complMul(U, conj(H)) / (absSqr(H) + N);
+
     for (int y = 0; y < U.rows; y++)
         for (int x = 0; x < U.cols; x++)
         {
             float noise = 0.0000001;
-
+    
             Vec2f uk = U.at<Vec2f>(y, x);
             Vec2f hk = H.at<Vec2f>(y, x);
+
+
             Vec2f hkc = hk;
             hkc[1] = -hkc[1];
-
-            Vec2f chisl = uk.mul(hkc);
+    
+            Vec2f chisl;
+            chisl[0] = uk[0] * hkc[0] - uk[1] * hkc[1];
+            chisl[1] = uk[0]*hkc[1] + uk[1] * hkc[0];
+            
             float modh2 = hk[0] * hk[0] + hk[1] * hk[1];
             float znam = modh2 + noise;
-
+    
             Vec2f res;
             res[0] = chisl[0] / znam;
             res[1] = chisl[1] / znam;
-
+    
             Y.at<Vec2f>(y, x) = res;
         }
     
